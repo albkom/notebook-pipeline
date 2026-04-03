@@ -14,17 +14,20 @@ A lightweight Python pipeline environment. Write code in Jupyter notebooks, conv
 ## Quick start
 
 ```bash
-# 1. Build the Docker image (once, and after changing requirements.txt)
-docker compose build
+# 1. Copy the example env file and fill in your values
+cp .env.example .env
 
-# 2. Run the default pipeline
+# 2. Start all services (includes Mailhog for local email testing)
+docker compose up -d
+
+# 3. Run the default pipeline
 docker compose run --rm python python pipelines/runner.py pipelines/main.yaml
 ```
 
 You'll see per-step output streamed to your terminal:
 
 ```
-[PIPELINE] Starting: main  (2 step(s))
+[PIPELINE] Starting: main  (3 step(s))
 
 ============================================================
 [STEP: step_one]  →  scripts/step_one.py
@@ -38,7 +41,13 @@ You'll see per-step output streamed to your terminal:
 ============================================================
 [step_two] Loaded 5 row(s) from data/output/step_one_output.csv
 ...
-[PIPELINE] ✓ All 2 step(s) completed successfully.
+[PIPELINE] OK: 'step_two' completed
+
+============================================================
+[STEP: step_three]  →  scripts/send_email_report.py
+============================================================
+Email sent successfully to: recipient@example.com
+[PIPELINE] ✓ All 3 step(s) completed successfully.
 ```
 
 ---
@@ -52,6 +61,44 @@ Open the Command Palette → **Tasks: Run Task** (or `Ctrl+Shift+B` for the defa
 | **Pipeline: Run** | Builds image if needed, then runs `pipelines/main.yaml` |
 | **Docker: Build** | Rebuilds the image (run after editing `requirements.txt`) |
 | **Notebook: Convert → Script** | Prompts for a `.ipynb` filename in `notebooks/`, converts it to a `.py` file in `scripts/` |
+
+---
+
+## Email reporting (Mailhog)
+
+The pipeline includes a `notebooks/send_email_report.ipynb` notebook that reads data produced by earlier steps and sends an HTML summary email.
+
+During local development, emails are captured by **Mailhog** — no real emails are sent.
+
+| Service | URL |
+|---|---|
+| Mailhog web UI | http://localhost:8025 |
+| SMTP (internal) | `mailhog:1025` |
+
+Configure these variables in `.env` (see `.env.example`):
+
+| Variable | Description |
+|---|---|
+| `SMTP_HOST` | `mailhog` for local dev, or your real SMTP host |
+| `SMTP_PORT` | `1025` for Mailhog, `587` for STARTTLS, `465` for SSL |
+| `SMTP_USER` | SMTP login (leave blank for Mailhog) |
+| `SMTP_PASSWORD` | SMTP password (leave blank for Mailhog) |
+| `EMAIL_FROM` | Sender address |
+| `EMAIL_TO` | Recipient(s), comma-separated |
+
+To add this as a pipeline step, convert the notebook to a script then register it in `pipelines/main.yaml`:
+
+```bash
+docker compose run --rm python jupyter nbconvert --to script notebooks/send_email_report.ipynb --output-dir scripts/
+```
+
+```yaml
+# pipelines/main.yaml
+steps:
+  - name: step_three
+    script: scripts/send_email_report.py
+    depends_on: step_two
+```
 
 ---
 
@@ -107,20 +154,25 @@ OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "data/output"))
 │  notebooks/  →  nbconvert  →  scripts/              │
 │                                                     │
 │  ┌─────────────────────────────────────────────┐   │
-│  │  Docker container  (python:3.12-slim)        │   │
+│  │  Docker (docker compose up)                  │   │
 │  │                                             │   │
-│  │  pipelines/runner.py                        │   │
-│  │    reads main.yaml                          │   │
-│  │    spawns subprocess per step               │   │
-│  │    streams stdout to your terminal          │   │
-│  │    exits on first failure                   │   │
+│  │  python:3.12-slim container                 │   │
+│  │    pipelines/runner.py                      │   │
+│  │      reads main.yaml                        │   │
+│  │      spawns subprocess per step             │   │
+│  │      streams stdout to your terminal        │   │
+│  │      exits on first failure                 │   │
 │  │                                             │   │
-│  │  scripts/step_one.py  ──┐                   │   │
-│  │  scripts/step_two.py  ←─┘  data/output/     │   │
+│  │    scripts/step_one.py  ──┐                 │   │
+│  │    scripts/step_two.py  ←─┘  data/output/   │   │
+│  │    scripts/send_email_report.py             │   │
+│  │        │                                   │   │
+│  │        ▼                                   │   │
+│  │  mailhog container  (SMTP :1025)            │   │
+│  │    web UI → http://localhost:8025           │   │
 │  └─────────────────────────────────────────────┘   │
 │                                                     │
 │  Volume mounts:  .  →  /app                         │
-│                  data/  →  /app/data                │
 └─────────────────────────────────────────────────────┘
 ```
 

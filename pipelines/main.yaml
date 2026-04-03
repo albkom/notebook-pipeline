@@ -6,3 +6,7 @@ steps:
   - name: step_two
     script: scripts/step_two.py
     depends_on: step_one   # runner will refuse to run this if step_one failed
+
+  - name: step_three
+    script: scripts/send_email_report.py
+    depends_on: step_two   # runner will refuse to run this if step_two failed
