@@ -1,0 +1,8 @@
+services:
+  python:
+    build: .
+    volumes:
+      - .:/app          # live-reload: edits on host are instantly visible in container
+    env_file:
+      - .env
+    working_dir: /app

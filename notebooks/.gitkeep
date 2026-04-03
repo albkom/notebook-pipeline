@@ -1,0 +1,3 @@
+# Place your .ipynb notebooks here.
+# This folder is for development only — notebooks are the source of truth.
+# Use the "Convert Notebook → Script" VS Code task to produce .py artifacts in scripts/.

@@ -1,0 +1,44 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "notebookFile",
+      "type": "promptString",
+      "description": "Notebook filename inside notebooks/ (e.g. my_analysis.ipynb)"
+    },
+    {
+      "id": "pipelineFile",
+      "type": "pickString",
+      "description": "Pipeline YAML to run",
+      "options": ["pipelines/main.yaml"],
+      "default": "pipelines/main.yaml"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Docker: Build",
+      "type": "shell",
+      "command": "docker compose build",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipeline: Run",
+      "type": "shell",
+      "command": "docker compose run --rm python python pipelines/runner.py ${input:pipelineFile}",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "dependsOn": "Docker: Build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Notebook: Convert → Script",
+      "type": "shell",
+      "command": "docker compose run --rm python jupyter nbconvert --to script notebooks/${input:notebookFile} --output-dir scripts/",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ]
+}

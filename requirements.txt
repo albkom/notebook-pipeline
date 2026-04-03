@@ -1,0 +1,8 @@
+jupyter>=1.1
+nbconvert>=7.16
+python-dotenv>=1.0
+pyyaml>=6.0
+
+# Add your script-specific dependencies below:
+# pandas>=2.2
+# numpy>=1.26
